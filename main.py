@@ -6,15 +6,16 @@ from astrbot.api import AstrBotConfig
 class qqjiazhi(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-        self.bot_qq = config.get("bot_qq", "请先配置bot_qq")
+        self.bot_qq = str(config.get("bot_qq", "请先配置bot_qq"))
+        self.source = config.get("source", ["保留参数，后续升级用"])
     async def initialize(self):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
     @filter.command("QQ估价")
     async def QQ估价(self, event: AstrMessageEvent, qq: str = None):
         """估量QQ号的价值"""
         result = "初始化"
-        if self.bot_qq == "请先配置bot_qq":
-            yield event.plain_result("请先配置bot_qq")
+        if self.bot_qq.strip() == "" or self.bot_qq.strip() == "请先配置bot_qq":
+            yield event.plain_result(" 请先配置bot_qq")
             return
         bot_qq = self.bot_qq # or await event.get_bot_qq()
         message_chain = event.message_obj.message
