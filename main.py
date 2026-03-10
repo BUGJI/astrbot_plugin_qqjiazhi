@@ -31,12 +31,7 @@ class QQJiaZhiPlugin(Star):
     async def estimate_qq_value(self, event: AstrMessageEvent, qq: str = None) -> None:
         """一键估算QQ号价值，拼接@或者QQ号可估对方QQ号价格"""
         
-        # 1. 验证bot_qq配置
-        if not self.bot_qq:
-            yield event.plain_result(" 请先配置bot_qq")
-            return
-        
-        #  转换成合法类型
+        # 1. 转换成合法类型
         if qq is not None:
             qq = str(qq)
         
@@ -87,8 +82,9 @@ class QQJiaZhiPlugin(Star):
         
         # 检查第一项是否为@机器人（命令前缀）
         first_comp = message_chain[0]
-        if isinstance(first_comp, Comp.At) and str(first_comp.qq) == self.bot_qq:
-            start_index = 1  # 跳过作为命令前缀的@机器人
+        if isinstance(first_comp, Comp.At):
+            if not self.bot_qq or str(first_comp.qq) == self.bot_qq:
+                start_index = 1
         
         # 从剩余消息中查找第一个@
         for component in message_chain[start_index:]:
