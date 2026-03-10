@@ -2,7 +2,7 @@
     "bot_qq": {
         "description": "机器人QQ号",
         "type": "string",
-        "hint": "用于分辨机器人本身，请配置好，不然无法正常工作"
+        "hint": "用于分辨机器人本身，配置后可以更好的工作，不配置也不影响"
     },
     "source": {
         "description": "估价源",
