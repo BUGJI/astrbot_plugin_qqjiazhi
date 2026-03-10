@@ -33,52 +33,73 @@ class QQJiaZhiPlugin(Star):
         
         # 1. 验证bot_qq配置
         if not self.bot_qq:
-            yield event.plain_result("请先配置bot_qq")
+            yield event.plain_result(" 请先配置bot_qq")
             return
         
         #  转换成合法类型
-        if qq != None:
+        if qq is not None:
             qq = str(qq)
         
         # 2. 获取待估价的QQ号
         target_qq = await self._extract_target_qq(event, qq)
         if not target_qq:
-            yield event.plain_result("无法获取有效的QQ号，请通过@、直接输入或回复消息指定QQ号")
+            yield event.plain_result(" 无法获取有效的QQ号，请通过@、直接输入或回复消息指定QQ号")
             return
         
         # 3. 验证QQ号格式
         if not self._is_valid_qq(target_qq):
-            yield event.plain_result(f"'{target_qq}' 不是有效的QQ号（应为5-12位数字）")
+            yield event.plain_result(f" '{target_qq}' 不是有效的QQ号（应为5-12位数字）")
             return
         
         # 4. 构建图片URL路径
         url_path = self._build_url_path(target_qq)
         if not url_path:
-            yield event.plain_result("QQ号处理失败")
+            yield event.plain_result(" QQ号处理失败")
             return
         
         # 5. 返回结果
         chain = [
-            Comp.Plain("你的QQ账号估算结果："),
+            Comp.Plain(" QQ账号估算结果："),
             Comp.Image.fromURL(f"https://c.bmcx.com/temp/qqjiazhi{url_path}.jpg?v=2"),
             Comp.Plain("注：结果仅供参考，来源 qqjiazhi.bmcx.com")
         ]
         yield event.chain_result(chain)
     
-    async def _extract_target_qq(self, event: AstrMessageEvent, input_qq: Optional[str]) -> Optional[str]:
+    def _extract_at_qq(self, event: AstrMessageEvent) -> Optional[str]:
         """
-        从多种来源提取目标QQ号
+        从消息中提取被@的QQ号（排除作为命令前缀的机器人自己）
         
-        优先级：@提及 > 命令参数 > 发送者ID
+        处理逻辑：
+        1. 如果消息第一项是@机器人，则将其视为命令前缀并跳过
+        2. 返回后续第一个非机器人@的QQ号
         
         Args:
             event: 消息事件对象
-            input_qq: 命令参数中的QQ号
             
         Returns:
-            Optional[str]: 提取到的QQ号，无效则返回None
+            Optional[str]: 被@的其他QQ号，没有则返回None
         """
-        # 1. 从@提及中提取
+        message_chain = event.message_obj.message
+        if not isinstance(message_chain, list) or len(message_chain) == 0:
+            return None
+        
+        start_index = 0
+        
+        # 检查第一项是否为@机器人（命令前缀）
+        first_comp = message_chain[0]
+        if isinstance(first_comp, Comp.At) and str(first_comp.qq) == self.bot_qq:
+            start_index = 1  # 跳过作为命令前缀的@机器人
+        
+        # 从剩余消息中查找第一个@
+        for component in message_chain[start_index:]:
+            if isinstance(component, Comp.At) and str(component.qq):
+                return str(component.qq)
+        
+        return None
+    
+    async def _extract_target_qq(self, event: AstrMessageEvent, input_qq: Optional[str]) -> Optional[str]:
+        """从多种来源提取目标QQ号"""
+        # 1. 从@提及中提取（已处理命令前缀情况）
         at_qq = self._extract_at_qq(event)
         if at_qq:
             return at_qq
@@ -89,27 +110,6 @@ class QQJiaZhiPlugin(Star):
         
         # 3. 从发送者ID提取
         return event.get_sender_id()
-    
-    def _extract_at_qq(self, event: AstrMessageEvent) -> Optional[str]:
-        """
-        从消息中提取被@的QQ号（排除机器人自己）
-        
-        Args:
-            event: 消息事件对象
-            
-        Returns:
-            Optional[str]: 被@的QQ号，没有则返回None
-        """
-        message_chain = event.message_obj.message
-        if not isinstance(message_chain, list):
-            return None
-        
-        # 反向遍历找到最后一个@（最靠近消息的@）
-        for component in reversed(message_chain):
-            if isinstance(component, Comp.At) and str(component.qq) != self.bot_qq:
-                return str(component.qq)
-        
-        return None
     
     def _is_valid_qq(self, qq: str) -> bool:
         """
