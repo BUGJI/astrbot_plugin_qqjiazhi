@@ -17,7 +17,7 @@ class QQJiaZhiPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.bot_qq = str(config.get("bot_qq", ""))
-        self.source = config.get("source", ["保留参数，后续升级用"])
+        # self.source = config.get("source", ["保留参数，后续升级用"])
         
     async def initialize(self) -> None:
         """插件初始化方法，实例化后自动调用"""
@@ -28,7 +28,7 @@ class QQJiaZhiPlugin(Star):
     
     @filter.command("QQ估价")
     async def estimate_qq_value(self, event: AstrMessageEvent, qq: str = None) -> None:
-        """估算QQ号价值"""
+        """一键估算QQ号价值，拼接@或者QQ号可估对方QQ号价格"""
         
         # 1. 验证bot_qq配置
         if not self.bot_qq:
