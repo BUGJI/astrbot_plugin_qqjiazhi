@@ -1,14 +1,23 @@
-# astrbot-plugin-helloworld
+# QQ估价
 
-AstrBot 插件模板 / A template plugin for AstrBot plugin feature
+### ⚠️ 大数据算了一卦，你的QQ号里藏着你的‘赛博命格’！
 
-> [!NOTE]
-> This repo is just a template of [AstrBot](https://github.com/AstrBotDevs/AstrBot) Plugin.
-> 
-> [AstrBot](https://github.com/AstrBotDevs/AstrBot) is an agentic assistant for both personal and group conversations. It can be deployed across dozens of mainstream instant messaging platforms, including QQ, Telegram, Feishu, DingTalk, Slack, LINE, Discord, Matrix, etc. In addition, it provides a reliable and extensible conversational AI infrastructure for individuals, developers, and teams. Whether you need a personal AI companion, an intelligent customer support agent, an automation assistant, or an enterprise knowledge base, AstrBot enables you to quickly build AI applications directly within your existing messaging workflows.
+#### 🔮 输入QQ号，解码你的互联网身份：
 
-# Supports
+### 是穷鬼还是富婆？是海王还是寡王？
 
-- [AstrBot Repo](https://github.com/AstrBotDevs/AstrBot)
-- [AstrBot Plugin Development Docs (Chinese)](https://docs.astrbot.app/dev/star/plugin-new.html)
-- [AstrBot Plugin Development Docs (English)](https://docs.astrbot.app/en/dev/star/plugin-new.html)
+#### 别装了，一查便知！看看你的号到底值几个欢乐豆！
+
+### 👉 安装此插件，发送`QQ估价`，测测你的虚拟身价！
+
+# 使用说明
+
+安装插件后，首先配置好 `bot自己的qq号` 排除掉，不然只能测bot本身
+
+发送 `QQ估价` 即可估算自己QQ号的价值
+
+如果想查询别人QQ的价值，只需要在命令后面加上他的QQ号
+
+# 感谢
+
+此插件使用 [qqjiazhi.bmcx.com](qqjiazhi.bmcx.com) 作为估价源
