@@ -1,34 +1,137 @@
+import re
+from typing import Optional
+
 from astrbot.api.event import filter, AstrMessageEvent
 import astrbot.api.message_components as Comp
 from astrbot.api.star import Context, Star, register
 from astrbot.api import AstrBotConfig
+
+
 @register("qqjiazhi", "BUGJI", "一键估算QQ号价值", "1.0.0")
-class qqjiazhi(Star):
+class QQJiaZhiPlugin(Star):
+    """QQ号价值估算插件"""
+    
+    # QQ号正则表达式（5-12位数字）
+    QQ_PATTERN = re.compile(r'^\d{5,12}$')
+    
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-        self.bot_qq = str(config.get("bot_qq", "请先配置bot_qq"))
+        self.bot_qq = str(config.get("bot_qq", ""))
         self.source = config.get("source", ["保留参数，后续升级用"])
-    async def initialize(self):
-        """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
+        
+    async def initialize(self) -> None:
+        """插件初始化方法，实例化后自动调用"""
+        # 验证bot_qq配置
+        if self.bot_qq and not self._is_valid_qq(self.bot_qq):
+            self.bot_qq = ""  # 清空无效配置
+            self.logger.warning("bot_qq配置无效，请设置为有效的QQ号")
+    
     @filter.command("QQ估价")
-    async def QQ估价(self, event: AstrMessageEvent, qq: str = None):
-        """估量QQ号的价值"""
-        result = "初始化"
-        if self.bot_qq.strip() == "" or self.bot_qq.strip() == "请先配置bot_qq":
-            yield event.plain_result(" 请先配置bot_qq")
+    async def estimate_qq_value(self, event: AstrMessageEvent, qq: str = None) -> None:
+        """估算QQ号价值"""
+        
+        # 1. 验证bot_qq配置
+        if not self.bot_qq:
+            yield event.plain_result("请先配置bot_qq")
             return
-        bot_qq = self.bot_qq # or await event.get_bot_qq()
-        message_chain = event.message_obj.message
-        at_qq = next((c.qq for c in reversed(message_chain) if isinstance(c, Comp.At) and str(c.qq) != str(bot_qq)), None)
-        user_id = (str(at_qq or qq or "")).strip() or event.get_sender_id()
-        temp = str(user_id).replace('/', '').replace(' ', '')
-        if len(temp) <= 3: result = '/' + temp
-        result = '/' + '/'.join([temp[i:i+3] for i in range(0, len(temp), 3)])
+        
+        # 2. 获取待估价的QQ号
+        target_qq = await self._extract_target_qq(event, qq)
+        if not target_qq:
+            yield event.plain_result("无法获取有效的QQ号，请通过@、直接输入或回复消息指定QQ号")
+            return
+        
+        # 3. 验证QQ号格式
+        if not self._is_valid_qq(target_qq):
+            yield event.plain_result(f"'{target_qq}' 不是有效的QQ号（应为5-12位数字）")
+            return
+        
+        # 4. 构建图片URL路径
+        url_path = self._build_url_path(target_qq)
+        if not url_path:
+            yield event.plain_result("QQ号处理失败")
+            return
+        
+        # 5. 返回结果
         chain = [
-            Comp.Plain(" 你的QQ账号估算结果："),
-            Comp.Image.fromURL("https://c.bmcx.com/temp/qqjiazhi"+result+".jpg?v=2"), # 从 URL 发送图片
+            Comp.Plain("你的QQ账号估算结果："),
+            Comp.Image.fromURL(f"https://c.bmcx.com/temp/qqjiazhi{url_path}.jpg?v=2"),
             Comp.Plain("注：结果仅供参考，来源 qqjiazhi.bmcx.com")
         ]
         yield event.chain_result(chain)
-    async def terminate(self):
-        """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
+    
+    async def _extract_target_qq(self, event: AstrMessageEvent, input_qq: Optional[str]) -> Optional[str]:
+        """
+        从多种来源提取目标QQ号
+        
+        优先级：@提及 > 命令参数 > 发送者ID
+        
+        Args:
+            event: 消息事件对象
+            input_qq: 命令参数中的QQ号
+            
+        Returns:
+            Optional[str]: 提取到的QQ号，无效则返回None
+        """
+        # 从@提及中提取（优先）
+        try:
+            message_obj = getattr(event, 'message_obj', None)
+            if message_obj and hasattr(message_obj, 'message'):
+                message_chain = message_obj.message
+                if message_chain and isinstance(message_chain, list):
+                    for component in reversed(message_chain):
+                        if isinstance(component, Comp.At) and str(component.qq) != self.bot_qq:
+                            return str(component.qq)
+        except Exception as e:
+            self.logger.error(f"解析@提及失败: {e}")
+        
+        input_qq = str(input_qq)
+        
+        # 从命令参数中提取
+        if input_qq and input_qq.strip():
+            return input_qq.strip()
+        
+        # 从发送者ID提取
+        try:
+            sender_id = event.get_sender_id()
+            if sender_id:
+                return sender_id
+        except Exception as e:
+            self.logger.error(f"获取发送者ID失败: {e}")
+        
+        return None
+    
+    def _is_valid_qq(self, qq: str) -> bool:
+        """
+        验证QQ号是否有效
+        
+        Args:
+            qq: 待验证的QQ号
+            
+        Returns:
+            bool: 是否为有效QQ号
+        """
+        if not qq or not isinstance(qq, str):
+            return False
+        # 移除可能的空格
+        qq = qq.strip()
+        # 必须是纯数字，且长度在5-12位之间
+        return bool(self.QQ_PATTERN.match(qq))
+    
+    def _build_url_path(self, qq: str) -> str:
+        """
+        构建URL路径
+        
+        Args:
+            qq: 已验证的QQ号
+            
+        Returns:
+            str: URL路径部分，以'/'开头
+        """
+        # 每3位一组，用'/'分隔
+        groups = [qq[i:i+3] for i in range(0, len(qq), 3)]
+        return '/' + '/'.join(groups)
+    
+    async def terminate(self) -> None:
+        """插件销毁方法，卸载/停用时调用"""
+        self.logger.info("QQ估价插件已卸载")
