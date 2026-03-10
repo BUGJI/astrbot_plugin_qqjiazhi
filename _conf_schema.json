@@ -1,0 +1,14 @@
+{
+    "bot_qq": {
+        "description": "机器人QQ号",
+        "type": "string",
+        "hint": "用于分辨机器人本身，请配置好，不然无法正常工作"
+    },
+    "source": {
+        "description": "估价源",
+        "type": "list",
+        "hint": "机器人估价的云端服务器",
+        "options": ["qqjiazhi.bmcx.com"],
+        "invisible": true
+    }
+}
