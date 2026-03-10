@@ -5,6 +5,7 @@ from astrbot.api.event import filter, AstrMessageEvent
 import astrbot.api.message_components as Comp
 from astrbot.api.star import Context, Star, register
 from astrbot.api import AstrBotConfig
+from astrbot.api import logger
 
 
 @register("qqjiazhi", "BUGJI", "一键估算QQ号价值", "1.0.0")
@@ -24,7 +25,7 @@ class QQJiaZhiPlugin(Star):
         # 验证bot_qq配置
         if self.bot_qq and not self._is_valid_qq(self.bot_qq):
             self.bot_qq = ""  # 清空无效配置
-            self.logger.warning("bot_qq配置无效，请设置为有效的QQ号")
+            logger.warning("bot_qq配置无效，请设置为有效的QQ号")
     
     @filter.command("QQ估价")
     async def estimate_qq_value(self, event: AstrMessageEvent, qq: str = None) -> None:
@@ -73,31 +74,36 @@ class QQJiaZhiPlugin(Star):
         Returns:
             Optional[str]: 提取到的QQ号，无效则返回None
         """
-        # 从@提及中提取（优先）
-        try:
-            message_obj = getattr(event, 'message_obj', None)
-            if message_obj and hasattr(message_obj, 'message'):
-                message_chain = message_obj.message
-                if message_chain and isinstance(message_chain, list):
-                    for component in reversed(message_chain):
-                        if isinstance(component, Comp.At) and str(component.qq) != self.bot_qq:
-                            return str(component.qq)
-        except Exception as e:
-            self.logger.error(f"解析@提及失败: {e}")
+        # 1. 从@提及中提取
+        at_qq = self._extract_at_qq(event)
+        if at_qq:
+            return at_qq
         
-        input_qq = str(input_qq)
-        
-        # 从命令参数中提取
+        # 2. 从命令参数中提取
         if input_qq and input_qq.strip():
             return input_qq.strip()
         
-        # 从发送者ID提取
-        try:
-            sender_id = event.get_sender_id()
-            if sender_id:
-                return sender_id
-        except Exception as e:
-            self.logger.error(f"获取发送者ID失败: {e}")
+        # 3. 从发送者ID提取
+        return event.get_sender_id()
+    
+    def _extract_at_qq(self, event: AstrMessageEvent) -> Optional[str]:
+        """
+        从消息中提取被@的QQ号（排除机器人自己）
+        
+        Args:
+            event: 消息事件对象
+            
+        Returns:
+            Optional[str]: 被@的QQ号，没有则返回None
+        """
+        message_chain = event.message_obj.message
+        if not isinstance(message_chain, list):
+            return None
+        
+        # 反向遍历找到最后一个@（最靠近消息的@）
+        for component in reversed(message_chain):
+            if isinstance(component, Comp.At) and str(component.qq) != self.bot_qq:
+                return str(component.qq)
         
         return None
     
@@ -113,14 +119,13 @@ class QQJiaZhiPlugin(Star):
         """
         if not qq or not isinstance(qq, str):
             return False
-        # 移除可能的空格
+        
         qq = qq.strip()
-        # 必须是纯数字，且长度在5-12位之间
         return bool(self.QQ_PATTERN.match(qq))
     
     def _build_url_path(self, qq: str) -> str:
         """
-        构建URL路径
+        构建URL路径（每3位一组用/分隔）
         
         Args:
             qq: 已验证的QQ号
@@ -128,10 +133,9 @@ class QQJiaZhiPlugin(Star):
         Returns:
             str: URL路径部分，以'/'开头
         """
-        # 每3位一组，用'/'分隔
         groups = [qq[i:i+3] for i in range(0, len(qq), 3)]
         return '/' + '/'.join(groups)
     
     async def terminate(self) -> None:
         """插件销毁方法，卸载/停用时调用"""
-        self.logger.info("QQ估价插件已卸载")
+        logger.info("QQ估价插件已卸载")
