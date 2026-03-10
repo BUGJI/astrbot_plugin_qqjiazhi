@@ -36,6 +36,10 @@ class QQJiaZhiPlugin(Star):
             yield event.plain_result("请先配置bot_qq")
             return
         
+        #  转换成合法类型
+        if qq != None:
+            qq = str(qq)
+        
         # 2. 获取待估价的QQ号
         target_qq = await self._extract_target_qq(event, qq)
         if not target_qq:
